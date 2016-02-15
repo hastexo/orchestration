@@ -786,27 +786,6 @@ resources:
       allowed_address_pairs:
         - ip_address: 172.29.224.0/19
 
-  daisy:
-    type: OS::Nova::Server
-    properties:
-      name: daisy
-      image: { get_param: image }
-      flavor: { get_param: volume_flavor }
-      key_name: { get_param: key_name }
-      user_data: { get_resource: volume_config }
-      user_data_format: RAW
-      networks:
-        - port: { get_resource: daisy_management_port }
-
-  daisy_management_port:
-    type: OS::Neutron::Port
-    properties:
-      network_id: { get_resource: management_net }
-      security_groups:
-        - { get_resource: server_security_group }
-      fixed_ips:
-        - ip_address: 192.168.122.114
-
   eric:
     type: OS::Nova::Server
     properties:
