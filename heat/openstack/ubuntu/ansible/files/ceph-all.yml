@@ -1,0 +1,16 @@
+---
+ceph_stable: true # use ceph stable branch
+ceph_stable_key: https://download.ceph.com/keys/release.asc
+ceph_stable_release: hammer # ceph stable release
+fsid: a2c7bd95-26ce-499f-98c0-a499262e3143
+monitor_interface: eth0
+monitor_secret: AQAwn8tUOP7nExAAT+s8C1lONj1u36o5itKjrg==
+journal_size: 4096
+public_network: 192.168.122.0/24
+radosgw_civetweb_port: 8080
+os_tuning_params:
+  - { name: kernel.pid_max, value: 4194303 }
+  - { name: fs.file-max, value: 26234859 }
+  - { name: vm.zone_reclaim_mode, value: 0 }
+  - { name: vm.vfs_cache_pressure, value: 50 }
+  - { name: vm.min_free_kbytes, value: 67584 }

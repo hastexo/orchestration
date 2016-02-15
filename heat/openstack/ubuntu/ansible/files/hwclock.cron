@@ -1,0 +1,4 @@
+# /etc/cron.d/hwclock: periodically sync the system time to the hardware clock
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+*/5 * * * *   root	hwclock -s

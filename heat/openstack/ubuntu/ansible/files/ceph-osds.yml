@@ -1,0 +1,4 @@
+---
+devices:
+  - /dev/vdb
+journal_collocation: true

@@ -1,0 +1,681 @@
+# academy-ubuntu-openstack.yaml
+#
+# Heat stack to deploy 7 Nova guests, pre-configured for deploying
+# Ubuntu OpenStack with Ansible and Ceph
+#
+# Node roles are designated as follows:
+#
+# - deploy: Ansible and OpenStack client node
+# - alice: controller and dashboard nodes
+# - bob: compute node
+# - charlie: network gateway node
+# - daisy, eric, frank: Ceph nodes
+heat_template_version: 2013-05-23
+
+description: >
+  7 Nova VMs pre-configured for OpenStack deployment with Ansible and Ceph
+
+parameters:
+  deploy_flavor:
+    type: string
+    description: Flavor to use for deploy node
+    default: m1.small
+  controller_flavor:
+    type: string
+    description: Flavor to use for controller nodes
+    default: m1.large
+  compute_flavor:
+    type: string
+    description: Flavor to use for compute nodes
+    default: m1.medium.e
+  volume_flavor:
+    type: string
+    description: Flavor to use for volume nodes
+    default: m1.medium.e
+  gateway_flavor:
+    type: string
+    description: Flavor to use for network gateway nodes
+    default: m1.small
+  public_net_id:
+    type: string
+    description: Public network ID
+  image:
+    type: string
+    description: Image ID or name
+    default: ubuntu-14.04-server-cloudimg
+  key_name:
+    type: string
+    description: Keypair name
+  user_password:
+    type: string
+    description: Password hash for the additional user to be created
+    default: '$6$WP9924IJiLSto8Ng$MSDwCvlT28jMOr9dwPUcJjQzcoB0BV0WCMMPB9xCj1ogbGlvgGOH.dHy5NnqYYqHVkvD5Wca/K4W.qUBbQei61'
+
+resources:
+  server_security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      description: Neutron security group rules
+      name: server_security_group
+      rules:
+      - remote_mode: 'remote_group_id'
+        remote_group_id:
+        direction: ingress
+      - remote_ip_prefix: 0.0.0.0/0
+        protocol: tcp
+        direction: ingress
+        port_range_min: 22
+        port_range_max: 22
+      - remote_ip_prefix: 0.0.0.0/0
+        protocol: icmp
+      - remote_ip_prefix: 0.0.0.0/0
+        protocol: tcp
+        direction: ingress
+        port_range_min: 80
+        port_range_max: 80
+      - remote_ip_prefix: 0.0.0.0/0
+        protocol: tcp
+        direction: ingress
+        port_range_min: 443
+        port_range_max: 443
+
+  user_keypair:
+    type: OS::Nova::KeyPair
+    properties:
+      name: { get_param: "OS::stack_id" }
+      save_private_key: true
+
+  default_config:
+    type: "OS::Heat::CloudConfig"
+    properties:
+      cloud_config:
+        package_update: true
+        package_upgrade: true
+        users:
+          - default
+          - name: training
+            groups: users,adm
+            lock-passwd: false
+            passwd: { get_param: user_password }
+            shell: /usr/sbin/nologin
+            sudo: "ALL=(ALL) NOPASSWD:ALL"
+            ssh_authorized_keys:
+              - { get_attr: [ user_keypair, public_key ] }
+        ssh_pwauth: true
+        write_files:
+          - path: /etc/hosts
+            permissions: '0644'
+            content: { get_file: files/hosts }
+        runcmd:
+          - chown -R training:training /home/training
+          - chsh -s /bin/bash training
+
+  ansible_config:
+    type: "OS::Heat::CloudConfig"
+    properties:
+      cloud_config:
+        package_update: true
+        package_upgrade: true
+        users:
+          - default
+          - name: training
+            groups: users,adm
+            lock-passwd: false
+            passwd: { get_param: user_password }
+            shell: /usr/sbin/nologin
+            sudo: "ALL=(ALL) NOPASSWD:ALL"
+            ssh_authorized_keys:
+              - { get_attr: [ user_keypair, public_key ] }
+        ssh_pwauth: true
+        write_files:
+          - path: /etc/cron.d/hwclock
+            permissions: '0644'
+            content: { get_file: files/hwclock.cron }
+          - path: /etc/hosts
+            permissions: '0644'
+            content: { get_file: files/hosts }
+          - path: /etc/network/interfaces.d/eth1.cfg
+            permissions: '0644'
+            content: |
+              auto eth1
+              iface eth1 inet manual
+          - path: /etc/network/interfaces.d/openstack.cfg
+            permissions: '0644'
+            content: { get_file: files/interfaces-openstack.cfg }
+          - path: /etc/ntp.conf
+            permissions: '0644'
+            content: { get_file: files/ntp.conf }
+          - path: /etc/openstack_deploy/openstack_user_config.yml
+            permissions: '0644'
+            content: { get_file: files/openstack_user_config.yml }
+          - path: /etc/openstack_deploy/user_variables.yml
+            permissions: '0644'
+            content: { get_file: files/user_variables.yml }
+          - path: /etc/openstack_deploy/user_variables.yml
+            permissions: '0644'
+            content: { get_file: files/user_variables.yml }
+          - path: /etc/ceph-ansible/group_vars/all
+            permissions: '0644'
+            content: { get_file: files/ceph-all.yml }
+          - path: /etc/ceph-ansible/group_vars/osds
+            permissions: '0644'
+            content: { get_file: files/ceph-osds.yml }
+          - path: /etc/ceph-ansible/hosts
+            permissions: '0644'
+            content: { get_file: files/ceph-ansible-hosts }
+          - path: '/home/training/create-neutron-networks.sh'
+            permissions: '0755'
+            content: { get_file: files/create-neutron-networks.sh }
+          - path: '/home/training/get-cirros-image.sh'
+            permissions: '0755'
+            content: { get_file: files/get-cirros-image.sh }
+          - path: '/home/training/add-security-group-rules.sh'
+            permissions: '0755'
+            content: { get_file: files/add-security-group-rules.sh }
+          - path: '/home/training/bootstrap-ssh.sh'
+            permissions: '0755'
+            content: { get_file: files/bootstrap-ssh-ceph.sh }
+          - path: '/home/training/openstackrc'
+            permissions: '0600'
+            content: { get_file: files/openstackrc }
+          - path: '/home/training/.profile'
+            permissions: '0644'
+            content: { get_file: files/profile }
+        apt_sources:
+          - source: ppa:ansible/ansible
+        packages:
+          - ntp
+          - screen
+          - ansible
+          - python-cinderclient
+          - python-glanceclient
+          - python-openstackclient
+          - python-keystoneclient
+          - python-neutronclient
+          - python-novaclient
+          - python-heatclient
+          - bridge-utils
+          - debootstrap
+          - ifenslave
+          - lsof
+          - lvm2
+          - ntpdate
+          - vlan
+          - aptitude
+          - build-essential
+          - git
+          - python-dev
+        runcmd:
+          - git clone -b kilo https://github.com/openstack/openstack-ansible.git /home/training/openstack-ansible
+          - cp -n -R /home/training/openstack-ansible/etc/openstack_deploy /etc
+          - /home/training/openstack-ansible/scripts/pw-token-gen.py --file /etc/openstack_deploy/user_secrets.yml
+          - git clone https://github.com/ceph/ceph-ansible.git /home/training/ceph-ansible
+          - cp /home/training/ceph-ansible/site.yml.sample /home/training/ceph-ansible/site.yml
+          - chown -R training:training /home/training
+          - chsh -s /bin/bash training
+
+
+  controller_config:
+    type: "OS::Heat::CloudConfig"
+    properties:
+      cloud_config:
+        package_update: true
+        package_upgrade: true
+        users:
+          - default
+          - name: training
+            groups: users,adm
+            lock-passwd: false
+            passwd: { get_param: user_password }
+            shell: /usr/sbin/nologin
+            sudo: "ALL=(ALL) NOPASSWD:ALL"
+            ssh_authorized_keys:
+              - { get_attr: [ user_keypair, public_key ] }
+        ssh_pwauth: true
+        write_files:
+          - path: /etc/cron.d/hwclock
+            permissions: '0644'
+            content: { get_file: files/hwclock.cron }
+          - path: /etc/hosts
+            permissions: '0644'
+            content: { get_file: files/hosts }
+          - path: /etc/network/interfaces.d/eth1.cfg
+            permissions: '0644'
+            content: |
+              auto eth1
+              iface eth1 inet manual
+          - path: /etc/network/interfaces.d/openstack.cfg
+            permissions: '0644'
+            content: { get_file: files/interfaces-openstack.cfg }
+        mounts:
+          - [ 'vdb', '/var/lib/lxc' ]
+        packages:
+          - ntpdate
+          - linux-image-generic-lts-wily
+        runcmd:
+          - chsh -s /bin/bash training
+
+  compute_config:
+    type: "OS::Heat::CloudConfig"
+    properties:
+      cloud_config:
+        package_update: true
+        package_upgrade: true
+        users:
+          - default
+          - name: training
+            groups: users,adm
+            lock-passwd: false
+            passwd: { get_param: user_password }
+            shell: /usr/sbin/nologin
+            sudo: "ALL=(ALL) NOPASSWD:ALL"
+            ssh_authorized_keys:
+              - { get_attr: [ user_keypair, public_key ] }
+        ssh_pwauth: true
+        write_files:
+          - path: /etc/cron.d/hwclock
+            permissions: '0644'
+            content: { get_file: files/hwclock.cron }
+          - path: /etc/hosts
+            permissions: '0644'
+            content: { get_file: files/hosts }
+          - path: /etc/network/interfaces.d/eth1.cfg
+            permissions: '0644'
+            content: |
+              auto eth1
+              iface eth1 inet manual
+          - path: /etc/network/interfaces.d/openstack.cfg
+            permissions: '0644'
+            content: { get_file: files/interfaces-openstack.cfg }
+        mounts:
+          - [ 'vdb', '/var/lib/nova/instances' ]
+        packages:
+          - ntpdate
+          - linux-image-generic-lts-wily
+        runcmd:
+          - chsh -s /bin/bash training
+
+  gateway_config:
+    type: "OS::Heat::CloudConfig"
+    properties:
+      cloud_config:
+        package_update: true
+        package_upgrade: true
+        users:
+          - default
+          - name: training
+            groups: users,adm
+            lock-passwd: false
+            passwd: { get_param: user_password }
+            shell: /usr/sbin/nologin
+            sudo: "ALL=(ALL) NOPASSWD:ALL"
+            ssh_authorized_keys:
+              - { get_attr: [ user_keypair, public_key ] }
+        ssh_pwauth: true
+        write_files:
+          - path: /etc/cron.d/hwclock
+            permissions: '0644'
+            content: { get_file: files/hwclock.cron }
+          - path: /etc/hosts
+            permissions: '0644'
+            content: { get_file: files/hosts }
+          - path: /etc/network/interfaces.d/eth1.cfg
+            permissions: '0644'
+            content: |
+              auto eth1
+              iface eth1 inet manual
+          - path: /etc/network/interfaces.d/openstack.cfg
+            permissions: '0644'
+            content: { get_file: files/interfaces-openstack.cfg }
+        packages:
+          - ntpdate
+          - linux-image-generic-lts-wily
+        runcmd:
+          - chsh -s /bin/bash training
+
+  volume_config:
+    type: "OS::Heat::CloudConfig"
+    properties:
+      cloud_config:
+        package_update: true
+        package_upgrade: true
+        users:
+          - default
+          - name: training
+            groups: users,adm
+            lock-passwd: false
+            passwd: { get_param: user_password }
+            shell: /usr/sbin/nologin
+            sudo: "ALL=(ALL) NOPASSWD:ALL"
+            ssh_authorized_keys:
+              - { get_attr: [ user_keypair, public_key ] }
+        ssh_pwauth: true
+        write_files:
+          - path: /etc/cron.d/hwclock
+            permissions: '0644'
+            content: { get_file: files/hwclock.cron }
+          - path: /etc/hosts
+            permissions: '0644'
+            content: { get_file: files/hosts }
+          - path: /etc/network/interfaces.d/eth1.cfg
+            permissions: '0644'
+            content: |
+              auto eth1
+              iface eth1 inet manual
+          - path: /etc/network/interfaces.d/openstack.cfg
+            permissions: '0644'
+            content: { get_file: files/interfaces-openstack.cfg }
+        mounts:
+          - [ 'vdb', null ]
+        packages:
+          - ntpdate
+          - linux-image-generic-lts-wily
+        runcmd:
+          - chsh -s /bin/bash training
+
+  management_net:
+    type: OS::Neutron::Net
+    properties:
+      name: management-net
+
+  management_sub_net:
+    type: OS::Neutron::Subnet
+    properties:
+      name: management-sub-net
+      network_id: { get_resource: management_net }
+      cidr: 192.168.122.0/24
+      gateway_ip: 192.168.122.1
+      enable_dhcp: true
+      allocation_pools: [{"start": "192.168.122.200", "end": "192.168.122.250"}]
+      dns_nameservers:
+        - 8.8.8.8
+        - 8.8.4.4
+
+  router:
+    type: OS::Neutron::Router
+
+  router_gateway:
+    type: OS::Neutron::RouterGateway
+    properties:
+      router_id: { get_resource: router }
+      network_id: { get_param: public_net_id }
+
+  router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: router }
+      subnet_id: { get_resource: management_sub_net }
+
+  data_net:
+    type: OS::Neutron::Net
+    properties:
+      name: data-net
+
+  data_sub_net:
+    type: OS::Neutron::Subnet
+    properties:
+      name: data-sub-net
+      network_id: { get_resource: data_net }
+      cidr: 192.168.133.0/24
+      gateway_ip: ""
+      enable_dhcp: true
+      allocation_pools: [{"start": "192.168.133.2", "end": "192.168.133.50"}]
+      dns_nameservers:
+        - 8.8.8.8
+        - 8.8.4.4
+
+  external_net:
+    type: OS::Neutron::Net
+    properties:
+      name: external-net
+
+  external_sub_net:
+    type: OS::Neutron::Subnet
+    properties:
+      name: external-sub-net
+      network_id: { get_resource: external_net }
+      cidr: 192.168.144.0/24
+      gateway_ip: ""
+      enable_dhcp: true
+      allocation_pools: [{"start": "192.168.144.2", "end": "192.168.144.50"}]
+      dns_nameservers:
+        - 8.8.8.8
+        - 8.8.4.4
+
+  deploy:
+    type: OS::Nova::Server
+    properties:
+      name: deploy
+      image: { get_param: image }
+      flavor: { get_param: deploy_flavor }
+      key_name: { get_param: key_name }
+      user_data: { get_resource: ansible_config }
+      user_data_format: RAW
+      networks:
+        - port: { get_resource: deploy_management_port }
+        - port: { get_resource: deploy_external_port }
+
+  deploy_management_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: management_net }
+      security_groups:
+        - { get_resource: server_security_group }
+      fixed_ips:
+        - ip_address: 192.168.122.100
+
+  deploy_external_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: external_net }
+      fixed_ips:
+        - ip_address: 192.168.144.100
+
+  deploy_floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network_id: { get_param: public_net_id }
+      port_id: { get_resource: deploy_management_port }
+
+  alice:
+    type: OS::Nova::Server
+    properties:
+      name: alice
+      image: { get_param: image }
+      flavor: { get_param: controller_flavor }
+      key_name: { get_param: key_name }
+      user_data: { get_resource: controller_config }
+      user_data_format: RAW
+      networks:
+        - port: { get_resource: alice_management_port }
+
+  alice_management_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: management_net }
+      security_groups:
+        - { get_resource: server_security_group }
+      fixed_ips:
+        - ip_address: 192.168.122.111
+      allowed_address_pairs:
+        - ip_address: 172.29.224.0/19
+
+  alice_floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network_id: { get_param: public_net_id }
+      port_id: { get_resource: alice_management_port }
+
+  bob:
+    type: OS::Nova::Server
+    properties:
+      name: bob
+      image: { get_param: image }
+      flavor: { get_param: compute_flavor }
+      key_name: { get_param: key_name }
+      user_data: { get_resource: compute_config }
+      user_data_format: RAW
+      networks:
+        - port: { get_resource: bob_management_port }
+        - port: { get_resource: bob_data_port }
+        - port: { get_resource: bob_external_port }
+
+  bob_management_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: management_net }
+      security_groups:
+        - { get_resource: server_security_group }
+      fixed_ips:
+        - ip_address: 192.168.122.112
+      allowed_address_pairs:
+        - ip_address: 172.29.224.0/19
+
+  bob_data_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: data_net }
+      fixed_ips:
+        - ip_address: 192.168.133.112
+
+  bob_external_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: external_net }
+      fixed_ips:
+        - ip_address: 192.168.144.112
+
+  charlie:
+    type: OS::Nova::Server
+    properties:
+      name: charlie
+      image: { get_param: image }
+      flavor: { get_param: gateway_flavor }
+      key_name: { get_param: key_name }
+      user_data: { get_resource: gateway_config }
+      user_data_format: RAW
+      networks:
+        - port: { get_resource: charlie_management_port }
+        - port: { get_resource: charlie_data_port }
+        - port: { get_resource: charlie_external_port }
+
+  charlie_management_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: management_net }
+      security_groups:
+        - { get_resource: server_security_group }
+      fixed_ips:
+        - ip_address: 192.168.122.113
+      allowed_address_pairs:
+        - ip_address: 172.29.224.0/19
+
+  charlie_data_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: data_net }
+      fixed_ips:
+        - ip_address: 192.168.133.113
+
+  charlie_external_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: external_net }
+      fixed_ips:
+        - ip_address: 192.168.144.113
+      allowed_address_pairs:
+        - ip_address: 0.0.0.0/0
+
+  daisy:
+    type: OS::Nova::Server
+    properties:
+      name: daisy
+      image: { get_param: image }
+      flavor: { get_param: volume_flavor }
+      key_name: { get_param: key_name }
+      user_data: { get_resource: volume_config }
+      user_data_format: RAW
+      networks:
+        - port: { get_resource: daisy_management_port }
+
+  daisy_management_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: management_net }
+      security_groups:
+        - { get_resource: server_security_group }
+      fixed_ips:
+        - ip_address: 192.168.122.114
+      allowed_address_pairs:
+        - ip_address: 172.29.224.0/19
+
+  daisy:
+    type: OS::Nova::Server
+    properties:
+      name: daisy
+      image: { get_param: image }
+      flavor: { get_param: volume_flavor }
+      key_name: { get_param: key_name }
+      user_data: { get_resource: volume_config }
+      user_data_format: RAW
+      networks:
+        - port: { get_resource: daisy_management_port }
+
+  daisy_management_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: management_net }
+      security_groups:
+        - { get_resource: server_security_group }
+      fixed_ips:
+        - ip_address: 192.168.122.114
+
+  eric:
+    type: OS::Nova::Server
+    properties:
+      name: eric
+      image: { get_param: image }
+      flavor: { get_param: volume_flavor }
+      key_name: { get_param: key_name }
+      user_data: { get_resource: volume_config }
+      user_data_format: RAW
+      networks:
+        - port: { get_resource: eric_management_port }
+
+  eric_management_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: management_net }
+      security_groups:
+        - { get_resource: server_security_group }
+      fixed_ips:
+        - ip_address: 192.168.122.115
+
+  frank:
+    type: OS::Nova::Server
+    properties:
+      name: frank
+      image: { get_param: image }
+      flavor: { get_param: volume_flavor }
+      key_name: { get_param: key_name }
+      user_data: { get_resource: volume_config }
+      user_data_format: RAW
+      networks:
+        - port: { get_resource: frank_management_port }
+
+  frank_management_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: management_net }
+      security_groups:
+        - { get_resource: server_security_group }
+      fixed_ips:
+        - ip_address: 192.168.122.116
+
+outputs:
+  deploy_ip:
+    description: Floating IP address of deploy host in public network
+    value: { get_attr: [ deploy_floating_ip, floating_ip_address ] }
+  dashboard_ip:
+    description: Floating IP address of Horizon host in public network
+    value: { get_attr: [ alice_floating_ip, floating_ip_address ] }

@@ -1,0 +1,44 @@
+---
+ceilometer_db_type: mongodb
+ceilometer_db_ip: localhost
+ceilometer_db_port: 27017
+swift_ceilometer_enabled: False
+heat_ceilometer_enabled: False
+cinder_ceilometer_enabled: False
+glance_ceilometer_enabled: False
+nova_ceilometer_enabled: False
+neutron_ceilometer_enabled: False
+
+aodh_db_type: mongodb
+aodh_db_ip: localhost
+aodh_db_port: 27017
+
+glance_default_store: rbd
+glance_notification_driver: noop
+
+glance_swift_store_endpoint_type: internalURL
+
+glance_ceph_client: cinder #glance
+glance_rbd_store_pool: rbd #images
+glance_rbd_store_chunk_size: 8
+
+nova_libvirt_images_rbd_pool: rbd #vms
+nova_ceph_client: cinder #nova
+
+nova_virt_type: kvm
+
+cinder_ceph_client: cinder
+
+ceph_apt_repo_url_region: "www"  # or "eu" for Netherlands based mirror
+ceph_stable_release: hammer
+cephx: true
+ceph_mons:
+  - 192.168.122.114
+  - 192.168.122.115
+  - 192.168.122.116
+
+ssl_protocol: "ALL -SSLv2 -SSLv3"
+ssl_cipher_suite: "ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+3DES:!aNULL:!MD5:!DSS"
+
+haproxy_keepalived_external_vip_cidr: "{{external_lb_vip_address}}/16"
+haproxy_keepalived_internal_vip_cidr: "{{internal_lb_vip_address}}/22"
