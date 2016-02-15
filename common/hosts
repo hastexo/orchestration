@@ -1,0 +1,20 @@
+127.0.0.1 localhost
+::1       ip6-localhost ip6-loopback
+fe00::0   ip6-localnet
+ff00::0   ip6-mcastprefix
+ff02::1   ip6-allnodes
+ff02::2   ip6-allrouters
+
+192.168.122.100 deploy.example.com deploy
+192.168.122.111 alice.example.com alice
+192.168.122.112 bob.example.com bob
+192.168.122.113 charlie.example.com charlie
+192.168.122.114 daisy.example.com daisy
+192.168.122.115 eric.example.com eric
+192.168.122.116 frank.example.com frank
+192.168.122.117 gina.example.com gina
+192.168.122.118 harry.example.com harry
+192.168.122.119 ian.example.com ian
+192.168.122.120 julie.example.com julie
+192.168.122.121 ken.example.com ken
+192.168.122.122 laura.example.com laura
