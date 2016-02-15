@@ -770,7 +770,7 @@ resources:
       image: { get_param: image }
       flavor: { get_param: volume_flavor }
       key_name: { get_param: key_name }
-      user_data: { get_resource: volume_config }
+      user_data: { get_resource: volume_1_config }
       user_data_format: RAW
       networks:
         - port: { get_resource: daisy_management_port }
@@ -793,7 +793,7 @@ resources:
       image: { get_param: image }
       flavor: { get_param: volume_flavor }
       key_name: { get_param: key_name }
-      user_data: { get_resource: volume_config }
+      user_data: { get_resource: volume_2_config }
       user_data_format: RAW
       networks:
         - port: { get_resource: eric_management_port }
@@ -814,7 +814,7 @@ resources:
       image: { get_param: image }
       flavor: { get_param: volume_flavor }
       key_name: { get_param: key_name }
-      user_data: { get_resource: volume_config }
+      user_data: { get_resource: volume_3_config }
       user_data_format: RAW
       networks:
         - port: { get_resource: frank_management_port }
