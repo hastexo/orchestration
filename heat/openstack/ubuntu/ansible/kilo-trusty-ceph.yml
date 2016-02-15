@@ -252,6 +252,17 @@ resources:
         packages:
           - ntpdate
           - linux-image-generic-lts-wily
+          - bridge-utils
+          - debootstrap
+          - ifenslave
+          - lsof
+          - lvm2
+          - ntpdate
+          - vlan
+          - aptitude
+          - build-essential
+          - git
+          - python-dev
         runcmd:
           - chsh -s /bin/bash training
 
@@ -292,6 +303,17 @@ resources:
         packages:
           - ntpdate
           - linux-image-generic-lts-wily
+          - bridge-utils
+          - debootstrap
+          - ifenslave
+          - lsof
+          - lvm2
+          - ntpdate
+          - vlan
+          - aptitude
+          - build-essential
+          - git
+          - python-dev
         runcmd:
           - chsh -s /bin/bash training
 
@@ -330,6 +352,17 @@ resources:
         packages:
           - ntpdate
           - linux-image-generic-lts-wily
+          - bridge-utils
+          - debootstrap
+          - ifenslave
+          - lsof
+          - lvm2
+          - ntpdate
+          - vlan
+          - aptitude
+          - build-essential
+          - git
+          - python-dev
         runcmd:
           - chsh -s /bin/bash training
 
@@ -370,6 +403,17 @@ resources:
         packages:
           - ntpdate
           - linux-image-generic-lts-wily
+          - bridge-utils
+          - debootstrap
+          - ifenslave
+          - lsof
+          - lvm2
+          - ntpdate
+          - vlan
+          - aptitude
+          - build-essential
+          - git
+          - python-dev
         runcmd:
           - chsh -s /bin/bash training
 
