@@ -378,7 +378,7 @@ resources:
           - sed -i 's/172.29.244.9/172.29.244.12/g' /etc/network/interfaces.d/openstack.cfg
           - reboot
 
-  volume_config:
+  volume_1_config:
     type: "OS::Heat::CloudConfig"
     properties:
       cloud_config:
@@ -431,6 +431,116 @@ resources:
           - sed -i 's/172.29.236.9/172.29.236.13/g' /etc/network/interfaces.d/openstack.cfg
           - sed -i 's/172.29.240.9/172.29.240.13/g' /etc/network/interfaces.d/openstack.cfg
           - sed -i 's/172.29.244.9/172.29.244.13/g' /etc/network/interfaces.d/openstack.cfg
+          - reboot
+
+  volume_2_config:
+    type: "OS::Heat::CloudConfig"
+    properties:
+      cloud_config:
+        package_update: true
+        package_upgrade: true
+        users:
+          - default
+          - name: training
+            groups: users,adm
+            lock-passwd: false
+            passwd: { get_param: user_password }
+            shell: /usr/sbin/nologin
+            sudo: "ALL=(ALL) NOPASSWD:ALL"
+            ssh_authorized_keys:
+              - { get_attr: [ user_keypair, public_key ] }
+        ssh_pwauth: true
+        write_files:
+          - path: /etc/cron.d/hwclock
+            permissions: '0644'
+            content: { get_file: files/hwclock.cron }
+          - path: /etc/hosts
+            permissions: '0644'
+            content: { get_file: files/hosts }
+          - path: /etc/network/interfaces.d/eth1.cfg
+            permissions: '0644'
+            content: |
+              auto eth1
+              iface eth1 inet manual
+          - path: /etc/network/interfaces.d/openstack.cfg
+            permissions: '0644'
+            content: { get_file: files/interfaces-openstack.cfg }
+        mounts:
+          - [ 'vdb', null ]
+        packages:
+          - ntpdate
+          - linux-image-generic-lts-wily
+          - bridge-utils
+          - debootstrap
+          - ifenslave
+          - lsof
+          - lvm2
+          - ntpdate
+          - vlan
+          - aptitude
+          - build-essential
+          - git
+          - python-dev
+        runcmd:
+          - chsh -s /bin/bash training
+          - sed -i 's/172.29.236.9/172.29.236.14/g' /etc/network/interfaces.d/openstack.cfg
+          - sed -i 's/172.29.240.9/172.29.240.14/g' /etc/network/interfaces.d/openstack.cfg
+          - sed -i 's/172.29.244.9/172.29.244.14/g' /etc/network/interfaces.d/openstack.cfg
+          - reboot
+
+  volume_3_config:
+    type: "OS::Heat::CloudConfig"
+    properties:
+      cloud_config:
+        package_update: true
+        package_upgrade: true
+        users:
+          - default
+          - name: training
+            groups: users,adm
+            lock-passwd: false
+            passwd: { get_param: user_password }
+            shell: /usr/sbin/nologin
+            sudo: "ALL=(ALL) NOPASSWD:ALL"
+            ssh_authorized_keys:
+              - { get_attr: [ user_keypair, public_key ] }
+        ssh_pwauth: true
+        write_files:
+          - path: /etc/cron.d/hwclock
+            permissions: '0644'
+            content: { get_file: files/hwclock.cron }
+          - path: /etc/hosts
+            permissions: '0644'
+            content: { get_file: files/hosts }
+          - path: /etc/network/interfaces.d/eth1.cfg
+            permissions: '0644'
+            content: |
+              auto eth1
+              iface eth1 inet manual
+          - path: /etc/network/interfaces.d/openstack.cfg
+            permissions: '0644'
+            content: { get_file: files/interfaces-openstack.cfg }
+        mounts:
+          - [ 'vdb', null ]
+        packages:
+          - ntpdate
+          - linux-image-generic-lts-wily
+          - bridge-utils
+          - debootstrap
+          - ifenslave
+          - lsof
+          - lvm2
+          - ntpdate
+          - vlan
+          - aptitude
+          - build-essential
+          - git
+          - python-dev
+        runcmd:
+          - chsh -s /bin/bash training
+          - sed -i 's/172.29.236.9/172.29.236.15/g' /etc/network/interfaces.d/openstack.cfg
+          - sed -i 's/172.29.240.9/172.29.240.15/g' /etc/network/interfaces.d/openstack.cfg
+          - sed -i 's/172.29.244.9/172.29.244.15/g' /etc/network/interfaces.d/openstack.cfg
           - reboot
 
   management_net:
