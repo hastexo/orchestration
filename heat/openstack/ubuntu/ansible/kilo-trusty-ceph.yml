@@ -265,6 +265,10 @@ resources:
           - python-dev
         runcmd:
           - chsh -s /bin/bash training
+          - sed -i 's/172.29.236.9/172.29.236.10/g' /etc/network/interfaces.d/openstack.cfg
+          - sed -i 's/172.29.240.9/172.29.240.10/g' /etc/network/interfaces.d/openstack.cfg
+          - sed -i 's/172.29.244.9/172.29.244.10/g' /etc/network/interfaces.d/openstack.cfg
+          - reboot
 
   compute_config:
     type: "OS::Heat::CloudConfig"
@@ -316,6 +320,10 @@ resources:
           - python-dev
         runcmd:
           - chsh -s /bin/bash training
+          - sed -i 's/172.29.236.9/172.29.236.11/g' /etc/network/interfaces.d/openstack.cfg
+          - sed -i 's/172.29.240.9/172.29.240.11/g' /etc/network/interfaces.d/openstack.cfg
+          - sed -i 's/172.29.244.9/172.29.244.11/g' /etc/network/interfaces.d/openstack.cfg
+          - reboot
 
   gateway_config:
     type: "OS::Heat::CloudConfig"
@@ -365,6 +373,10 @@ resources:
           - python-dev
         runcmd:
           - chsh -s /bin/bash training
+          - sed -i 's/172.29.236.9/172.29.236.12/g' /etc/network/interfaces.d/openstack.cfg
+          - sed -i 's/172.29.240.9/172.29.240.12/g' /etc/network/interfaces.d/openstack.cfg
+          - sed -i 's/172.29.244.9/172.29.244.12/g' /etc/network/interfaces.d/openstack.cfg
+          - reboot
 
   volume_config:
     type: "OS::Heat::CloudConfig"
@@ -416,6 +428,10 @@ resources:
           - python-dev
         runcmd:
           - chsh -s /bin/bash training
+          - sed -i 's/172.29.236.9/172.29.236.13/g' /etc/network/interfaces.d/openstack.cfg
+          - sed -i 's/172.29.240.9/172.29.240.13/g' /etc/network/interfaces.d/openstack.cfg
+          - sed -i 's/172.29.244.9/172.29.244.13/g' /etc/network/interfaces.d/openstack.cfg
+          - reboot
 
   management_net:
     type: OS::Neutron::Net
