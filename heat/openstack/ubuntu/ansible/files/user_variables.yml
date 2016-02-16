@@ -25,7 +25,7 @@ glance_rbd_store_chunk_size: 8
 nova_libvirt_images_rbd_pool: rbd #vms
 nova_ceph_client: cinder #nova
 
-nova_virt_type: kvm
+nova_virt_type: qemu
 
 cinder_ceph_client: cinder
 
