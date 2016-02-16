@@ -268,6 +268,10 @@ resources:
           - sed -i 's/172.29.236.9/172.29.236.10/g' /etc/network/interfaces.d/openstack.cfg
           - sed -i 's/172.29.240.9/172.29.240.10/g' /etc/network/interfaces.d/openstack.cfg
           - sed -i 's/172.29.244.9/172.29.244.10/g' /etc/network/interfaces.d/openstack.cfg
+          - dd if=/dev/zero of=/swapfile bs=1M count=1024
+          - mkswap /swapfile
+          - swapon /swapfile
+          - echo "/swapfile swap swap defaults 0 0" >> /etc/fstab
           - reboot
 
   compute_config:
