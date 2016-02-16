@@ -248,7 +248,7 @@ resources:
             permissions: '0644'
             content: { get_file: files/interfaces-openstack.cfg }
         mounts:
-          - [ 'vdb', '/var/lib/lxc' ]
+          - [ 'vdb', null ]
         packages:
           - ntpdate
           - linux-image-generic-lts-wily
