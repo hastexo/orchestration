@@ -40,5 +40,9 @@ ceph_mons:
 ssl_protocol: "ALL -SSLv2 -SSLv3"
 ssl_cipher_suite: "ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+3DES:!aNULL:!MD5:!DSS"
 
+neutron_dhcp_config:
+  dhcp-option-force: "26,1400"
+  log-facility: "/var/log/neutron/neutron-dnsmasq.log"
+
 #haproxy_keepalived_external_vip_cidr: "{{external_lb_vip_address}}/16"
 #haproxy_keepalived_internal_vip_cidr: "{{internal_lb_vip_address}}/22"
