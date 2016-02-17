@@ -141,7 +141,11 @@ resources:
               iface eth1 inet manual
           - path: /etc/network/interfaces.d/openstack.cfg
             permissions: '0644'
-            content: { get_file: files/interfaces-openstack.cfg }
+            content:
+              str_replace:
+                template: { get_file: files/interfaces-openstack.cfg }
+                params:
+                  IP_LAST_OCTET: 9
           - path: /etc/ntp.conf
             permissions: '0644'
             content: { get_file: files/ntp.conf }
@@ -213,6 +217,7 @@ resources:
           - cp /home/training/ceph-ansible/site.yml.sample /home/training/ceph-ansible/site.yml
           - chown -R training:training /home/training
           - chsh -s /bin/bash training
+          - reboot
 
 
   controller_config:
@@ -246,7 +251,11 @@ resources:
               iface eth1 inet manual
           - path: /etc/network/interfaces.d/openstack.cfg
             permissions: '0644'
-            content: { get_file: files/interfaces-openstack.cfg }
+            content:
+              str_replace:
+                template: { get_file: files/interfaces-openstack.cfg }
+                params:
+                  IP_LAST_OCTET: 10
         mounts:
           - [ 'vdb', null ]
         packages:
@@ -265,9 +274,6 @@ resources:
           - python-dev
         runcmd:
           - chsh -s /bin/bash training
-          - sed -i 's/172.29.236.9/172.29.236.10/g' /etc/network/interfaces.d/openstack.cfg
-          - sed -i 's/172.29.240.9/172.29.240.10/g' /etc/network/interfaces.d/openstack.cfg
-          - sed -i 's/172.29.244.9/172.29.244.10/g' /etc/network/interfaces.d/openstack.cfg
           - dd if=/dev/zero of=/swapfile bs=1M count=1024
           - mkswap /swapfile
           - swapon /swapfile
@@ -305,7 +311,11 @@ resources:
               iface eth1 inet manual
           - path: /etc/network/interfaces.d/openstack.cfg
             permissions: '0644'
-            content: { get_file: files/interfaces-openstack.cfg }
+            content:
+              str_replace:
+                template: { get_file: files/interfaces-openstack.cfg }
+                params:
+                  IP_LAST_OCTET: 11
         mounts:
           - [ 'vdb', '/var/lib/nova/instances' ]
         packages:
@@ -324,9 +334,6 @@ resources:
           - python-dev
         runcmd:
           - chsh -s /bin/bash training
-          - sed -i 's/172.29.236.9/172.29.236.11/g' /etc/network/interfaces.d/openstack.cfg
-          - sed -i 's/172.29.240.9/172.29.240.11/g' /etc/network/interfaces.d/openstack.cfg
-          - sed -i 's/172.29.244.9/172.29.244.11/g' /etc/network/interfaces.d/openstack.cfg
           - reboot
 
   gateway_config:
@@ -360,7 +367,11 @@ resources:
               iface eth1 inet manual
           - path: /etc/network/interfaces.d/openstack.cfg
             permissions: '0644'
-            content: { get_file: files/interfaces-openstack.cfg }
+            content:
+              str_replace:
+                template: { get_file: files/interfaces-openstack.cfg }
+                params:
+                  IP_LAST_OCTET: 12
         packages:
           - ntpdate
           - linux-image-generic-lts-wily
@@ -377,9 +388,6 @@ resources:
           - python-dev
         runcmd:
           - chsh -s /bin/bash training
-          - sed -i 's/172.29.236.9/172.29.236.12/g' /etc/network/interfaces.d/openstack.cfg
-          - sed -i 's/172.29.240.9/172.29.240.12/g' /etc/network/interfaces.d/openstack.cfg
-          - sed -i 's/172.29.244.9/172.29.244.12/g' /etc/network/interfaces.d/openstack.cfg
           - reboot
 
   volume_1_config:
@@ -413,7 +421,11 @@ resources:
               iface eth1 inet manual
           - path: /etc/network/interfaces.d/openstack.cfg
             permissions: '0644'
-            content: { get_file: files/interfaces-openstack.cfg }
+            content:
+              str_replace:
+                template: { get_file: files/interfaces-openstack.cfg }
+                params:
+                  IP_LAST_OCTET: 13 
         mounts:
           - [ 'vdb', null ]
         packages:
@@ -432,9 +444,6 @@ resources:
           - python-dev
         runcmd:
           - chsh -s /bin/bash training
-          - sed -i 's/172.29.236.9/172.29.236.13/g' /etc/network/interfaces.d/openstack.cfg
-          - sed -i 's/172.29.240.9/172.29.240.13/g' /etc/network/interfaces.d/openstack.cfg
-          - sed -i 's/172.29.244.9/172.29.244.13/g' /etc/network/interfaces.d/openstack.cfg
           - reboot
 
   volume_2_config:
@@ -468,7 +477,11 @@ resources:
               iface eth1 inet manual
           - path: /etc/network/interfaces.d/openstack.cfg
             permissions: '0644'
-            content: { get_file: files/interfaces-openstack.cfg }
+            content:
+              str_replace:
+                template: { get_file: files/interfaces-openstack.cfg }
+                params:
+                  IP_LAST_OCTET: 14
         mounts:
           - [ 'vdb', null ]
         packages:
@@ -487,9 +500,6 @@ resources:
           - python-dev
         runcmd:
           - chsh -s /bin/bash training
-          - sed -i 's/172.29.236.9/172.29.236.14/g' /etc/network/interfaces.d/openstack.cfg
-          - sed -i 's/172.29.240.9/172.29.240.14/g' /etc/network/interfaces.d/openstack.cfg
-          - sed -i 's/172.29.244.9/172.29.244.14/g' /etc/network/interfaces.d/openstack.cfg
           - reboot
 
   volume_3_config:
@@ -523,7 +533,11 @@ resources:
               iface eth1 inet manual
           - path: /etc/network/interfaces.d/openstack.cfg
             permissions: '0644'
-            content: { get_file: files/interfaces-openstack.cfg }
+            content:
+              str_replace:
+                template: { get_file: files/interfaces-openstack.cfg }
+                params:
+                  IP_LAST_OCTET: 15
         mounts:
           - [ 'vdb', null ]
         packages:
@@ -542,9 +556,6 @@ resources:
           - python-dev
         runcmd:
           - chsh -s /bin/bash training
-          - sed -i 's/172.29.236.9/172.29.236.15/g' /etc/network/interfaces.d/openstack.cfg
-          - sed -i 's/172.29.240.9/172.29.240.15/g' /etc/network/interfaces.d/openstack.cfg
-          - sed -i 's/172.29.244.9/172.29.244.15/g' /etc/network/interfaces.d/openstack.cfg
           - reboot
 
   management_net:
