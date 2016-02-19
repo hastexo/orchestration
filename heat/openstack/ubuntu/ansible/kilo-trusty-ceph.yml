@@ -200,12 +200,9 @@ resources:
           - path: '/home/training/.profile'
             permissions: '0644'
             content: { get_file: files/profile }
-        apt_sources:
-          - source: ppa:ansible/ansible
         packages:
           - ntp
           - screen
-          - ansible
           - python-cinderclient
           - python-glanceclient
           - python-openstackclient
