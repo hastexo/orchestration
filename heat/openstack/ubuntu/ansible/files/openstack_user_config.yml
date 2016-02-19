@@ -38,15 +38,6 @@ global_overrides:
         group_binds:
           - neutron_linuxbridge_agent
     - network:
-        container_bridge: "br-vlan"
-        container_type: "veth"
-        container_interface: "eth12"
-        host_bind_override: "eth12"
-        type: "flat"
-        net_name: "flat"
-        group_binds:
-          - neutron_linuxbridge_agent
-    - network:
         container_bridge: "br-storage"
         container_type: "veth"
         container_interface: "eth2"
@@ -57,7 +48,6 @@ global_overrides:
           - cinder_api
           - cinder_volume
           - nova_compute
-          #- swift_proxy
 
 shared-infra_hosts:
   alice:
