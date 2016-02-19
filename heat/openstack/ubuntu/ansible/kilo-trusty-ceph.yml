@@ -134,11 +134,12 @@ resources:
           - path: /etc/hosts
             permissions: '0644'
             content: { get_file: files/hosts }
+          - path: /etc/network/interfaces.d/eth0.cfg
+            permissions: '0644'
+            content: { get_file: files/eth0.cfg }
           - path: /etc/network/interfaces.d/eth1.cfg
             permissions: '0644'
-            content: |
-              auto eth1
-              iface eth1 inet manual
+            content: { get_file: files/eth1.cfg }
           - path: /etc/network/interfaces.d/openstack.cfg
             permissions: '0644'
             content:
@@ -244,11 +245,12 @@ resources:
           - path: /etc/hosts
             permissions: '0644'
             content: { get_file: files/hosts }
+          - path: /etc/network/interfaces.d/eth0.cfg
+            permissions: '0644'
+            content: { get_file: files/eth0.cfg }
           - path: /etc/network/interfaces.d/eth1.cfg
             permissions: '0644'
-            content: |
-              auto eth1
-              iface eth1 inet manual
+            content: { get_file: files/eth1.cfg }
           - path: /etc/network/interfaces.d/openstack.cfg
             permissions: '0644'
             content:
@@ -300,11 +302,12 @@ resources:
           - path: /etc/hosts
             permissions: '0644'
             content: { get_file: files/hosts }
+          - path: /etc/network/interfaces.d/eth0.cfg
+            permissions: '0644'
+            content: { get_file: files/eth0.cfg }
           - path: /etc/network/interfaces.d/eth1.cfg
             permissions: '0644'
-            content: |
-              auto eth1
-              iface eth1 inet manual
+            content: { get_file: files/eth1.cfg }
           - path: /etc/network/interfaces.d/openstack.cfg
             permissions: '0644'
             content:
@@ -356,11 +359,12 @@ resources:
           - path: /etc/hosts
             permissions: '0644'
             content: { get_file: files/hosts }
+          - path: /etc/network/interfaces.d/eth0.cfg
+            permissions: '0644'
+            content: { get_file: files/eth0.cfg }
           - path: /etc/network/interfaces.d/eth1.cfg
             permissions: '0644'
-            content: |
-              auto eth1
-              iface eth1 inet manual
+            content: { get_file: files/eth1.cfg }
           - path: /etc/network/interfaces.d/openstack.cfg
             permissions: '0644'
             content:
@@ -410,11 +414,9 @@ resources:
           - path: /etc/hosts
             permissions: '0644'
             content: { get_file: files/hosts }
-          - path: /etc/network/interfaces.d/eth1.cfg
+          - path: /etc/network/interfaces.d/eth0.cfg
             permissions: '0644'
-            content: |
-              auto eth1
-              iface eth1 inet manual
+            content: { get_file: files/eth0.cfg }
           - path: /etc/network/interfaces.d/openstack.cfg
             permissions: '0644'
             content:
@@ -466,11 +468,9 @@ resources:
           - path: /etc/hosts
             permissions: '0644'
             content: { get_file: files/hosts }
-          - path: /etc/network/interfaces.d/eth1.cfg
+          - path: /etc/network/interfaces.d/eth0.cfg
             permissions: '0644'
-            content: |
-              auto eth1
-              iface eth1 inet manual
+            content: { get_file: files/eth0.cfg }
           - path: /etc/network/interfaces.d/openstack.cfg
             permissions: '0644'
             content:
@@ -522,11 +522,9 @@ resources:
           - path: /etc/hosts
             permissions: '0644'
             content: { get_file: files/hosts }
-          - path: /etc/network/interfaces.d/eth1.cfg
+          - path: /etc/network/interfaces.d/eth0.cfg
             permissions: '0644'
-            content: |
-              auto eth1
-              iface eth1 inet manual
+            content: { get_file: files/eth0.cfg }
           - path: /etc/network/interfaces.d/openstack.cfg
             permissions: '0644'
             content:
@@ -669,6 +667,7 @@ resources:
       user_data_format: RAW
       networks:
         - port: { get_resource: alice_management_port }
+        - port: { get_resource: alice_data_port }
 
   alice_management_port:
     type: OS::Neutron::Port
