@@ -218,7 +218,8 @@ resources:
           - cp /home/training/ceph-ansible/site.yml.sample /home/training/ceph-ansible/site.yml
           - chown -R training:training /home/training
           - chsh -s /bin/bash training
-          - reboot
+        power_state:
+          mode: reboot
 
 
   controller_config:
@@ -276,7 +277,8 @@ resources:
           - python-dev
         runcmd:
           - chsh -s /bin/bash training
-          - reboot
+        power_state:
+          mode: reboot
 
   compute_config:
     type: "OS::Heat::CloudConfig"
@@ -333,7 +335,8 @@ resources:
           - python-dev
         runcmd:
           - chsh -s /bin/bash training
-          - reboot
+        power_state:
+          mode: reboot
 
   gateway_config:
     type: "OS::Heat::CloudConfig"
@@ -388,7 +391,8 @@ resources:
           - python-dev
         runcmd:
           - chsh -s /bin/bash training
-          - reboot
+        power_state:
+          mode: reboot
 
   volume_1_config:
     type: "OS::Heat::CloudConfig"
@@ -442,7 +446,8 @@ resources:
           - python-dev
         runcmd:
           - chsh -s /bin/bash training
-          - reboot
+        power_state:
+          mode: reboot
 
   volume_2_config:
     type: "OS::Heat::CloudConfig"
@@ -496,7 +501,8 @@ resources:
           - python-dev
         runcmd:
           - chsh -s /bin/bash training
-          - reboot
+        power_state:
+          mode: reboot
 
   volume_3_config:
     type: "OS::Heat::CloudConfig"
@@ -550,7 +556,8 @@ resources:
           - python-dev
         runcmd:
           - chsh -s /bin/bash training
-          - reboot
+        power_state:
+          mode: reboot
 
   management_net:
     type: OS::Neutron::Net
