@@ -1,0 +1,686 @@
+# academy-ubuntu-openstack.yaml
+#
+# Heat stack to deploy 5 Nova guests, pre-configured for deploying
+# Ubuntu OpenStack with Juju.
+#
+# Node roles are designated as follows:
+#
+# - deploy: Juju and OpenStack client node
+# - alice: controller and dashboard nodes
+# - bob: compute node
+# - charlie: network gateway node
+# - daisy: volume storage node
+#
+# To deploy,
+# (1) Run heat stack-create.
+# (2) Once the stack has reached CREATE_COMPLETE, retrieve the
+#     deploy_ip output to connect to the deploy node (as the default
+#     user, ubuntu).
+# (3) On deploy, run /home/ubuntu/bootstrap-juju.sh. This installs
+#     Juju and the Juju GUI on deploy, and then proceeds to configure
+#     OpenStack on the other nodes. The entire process takes about
+#     45-60 minutes.
+# (4) Once deployment has completed per "juju stat --format=tabular",
+#     you can continue with setting up snapshots and then
+#     mass-deploying the setup.
+heat_template_version: 2013-05-23
+
+description: >
+  5 Nova VMs pre-configured for OpenStack deployment with Juju.
+
+parameters:
+  deploy_flavor:
+    type: string
+    description: Flavor to use for deploy node
+    default: m1.small
+  controller_flavor:
+    type: string
+    description: Flavor to use for controller nodes
+    default: m1.large
+  compute_flavor:
+    type: string
+    description: Flavor to use for compute nodes
+    default: m1.medium.e
+  volume_flavor:
+    type: string
+    description: Flavor to use for volume nodes
+    default: m1.medium.e
+  gateway_flavor:
+    type: string
+    description: Flavor to use for network gateway nodes
+    default: m1.small
+  public_net_id:
+    type: string
+    description: Public network ID
+  image:
+    type: string
+    description: Image ID or name
+    default: ubuntu-14.04-server-cloudimg
+  key_name:
+    type: string
+    description: Keypair name
+  user_password:
+    type: string
+    description: Password hash for the additional user to be created
+    default: '$6$WP9924IJiLSto8Ng$MSDwCvlT28jMOr9dwPUcJjQzcoB0BV0WCMMPB9xCj1ogbGlvgGOH.dHy5NnqYYqHVkvD5Wca/K4W.qUBbQei61'
+  timeout:
+    type: number
+    description: Timeout for stack creation to finish
+    default: 900
+
+resources:
+  all_done:
+    type: OS::Heat::WaitCondition
+    properties:
+      handle: {get_resource: all_done_handle}
+      count: 5
+      timeout: {get_param: timeout}
+
+  all_done_handle:
+    type: OS::Heat::WaitConditionHandle
+
+  proxy_ready:
+    type: OS::Heat::WaitCondition
+    properties:
+      handle: {get_resource: proxy_ready_handle}
+      count: 1
+      timeout: {get_param: timeout}
+
+  proxy_ready_handle:
+    type: OS::Heat::WaitConditionHandle
+
+  server_security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      description: Neutron security group rules
+      name: server_security_group
+      rules:
+      - remote_mode: 'remote_group_id'
+        remote_group_id:
+        direction: ingress
+      - remote_ip_prefix: 0.0.0.0/0
+        protocol: tcp
+        direction: ingress
+        port_range_min: 22
+        port_range_max: 22
+      - remote_ip_prefix: 0.0.0.0/0
+        protocol: icmp
+      - remote_ip_prefix: 0.0.0.0/0
+        protocol: tcp
+        direction: ingress
+        port_range_min: 80
+        port_range_max: 80
+      - remote_ip_prefix: 0.0.0.0/0
+        protocol: tcp
+        direction: ingress
+        port_range_min: 443
+        port_range_max: 443
+
+  user_keypair:
+    type: OS::Nova::KeyPair
+    properties:
+      name: { get_param: "OS::stack_id" }
+      save_private_key: true
+
+  default_config:
+    type: "OS::Heat::CloudConfig"
+    properties:
+      cloud_config:
+        package_update: true
+        package_upgrade: true
+        users:
+          - default
+          - name: training
+            groups: users,adm
+            lock-passwd: false
+            passwd: { get_param: user_password }
+            shell: /usr/sbin/nologin
+            sudo: "ALL=(ALL) NOPASSWD:ALL"
+            ssh_authorized_keys:
+              - { get_attr: [ user_keypair, public_key ] }
+        ssh_pwauth: true
+        write_files:
+          - path: /etc/hosts
+            permissions: '0644'
+            content: { get_file: files/hosts }
+        runcmd:
+          - chown -R training:training /home/training
+          - chsh -s /bin/bash training
+          - { get_attr: ['all_done_handle', 'curl_cli'] }
+
+  juju_config:
+    type: "OS::Heat::CloudConfig"
+    properties:
+      cloud_config:
+        ### bootcmd: runs arbitrary commands early in the boot sequence
+        bootcmd:
+          - apt-get update
+          - apt-get -y install --no-install-recommends apt-cacher-ng
+          - { get_attr: ['proxy_ready_handle', 'curl_cli'] }
+        package_update: true
+        package_upgrade: true
+        users:
+          - default
+          - name: training
+            groups: users,adm
+            lock-passwd: false
+            passwd: { get_param: user_password }
+            shell: /usr/sbin/nologin
+            sudo: "ALL=(ALL) NOPASSWD:ALL"
+            ssh_authorized_keys:
+              - { get_attr: [ user_keypair, public_key ] }
+        ssh_pwauth: true
+        write_files:
+          - path: /etc/cron.d/hwclock
+            permissions: '0644'
+            content: { get_file: files/hwclock.cron }
+          - path: /etc/hosts
+            permissions: '0644'
+            content: { get_file: files/hosts }
+          - path: /etc/network/interfaces.d/eth1.cfg
+            permissions: '0644'
+            content: |
+              auto eth1
+              iface eth1 inet dhcp
+          - path: /etc/ntp.conf
+            permissions: '0644'
+            content: { get_file: files/ntp.conf }
+          - path: '/home/training/.juju/environments.yaml'
+            permissions: '0640'
+            content: |
+              default: manual
+              environments:
+                manual:
+                  type: manual
+                  bootstrap-host: deploy.example.com
+                  bootstrap-user: training
+          - path: '/home/training/juju-config.yaml'
+            permissions: '0644'
+            content: |
+              mysql:
+                "dataset-size": 256M
+              keystone:
+                "admin-password": openstack
+                "openstack-origin": "cloud:trusty-liberty"
+              "nova-cloud-controller":
+                "network-manager": Neutron
+                "openstack-origin": "cloud:trusty-liberty"
+              "neutron-gateway":
+                "ext-port": eth2
+                "bridge-mappings": "external:br-ex"
+                "openstack-origin": "cloud:trusty-liberty"
+                "os-data-network": 192.168.133.0/24
+                "instance-mtu": 1400
+              "neutron-api":
+                "network-device-mtu": 1400
+                "openstack-origin": "cloud:trusty-liberty"
+                "neutron-security-groups": true
+                "overlay-network-type": vxlan
+              "rabbitmq-server":
+              "cinder-api":
+                "enabled-services": "api,scheduler"
+                "openstack-origin": "cloud:trusty-liberty"
+              "cinder-volume":
+                "enabled-services": volume
+                "block-device": vdb
+                "openstack-origin": "cloud:trusty-liberty"
+              glance:
+                "openstack-origin": "cloud:trusty-liberty"
+              heat:
+                "openstack-origin": "cloud:trusty-liberty"
+              mysql:
+              "openstack-dashboard":
+                "openstack-origin": "cloud:trusty-liberty"
+                "webroot": "/"
+              "nova-compute":
+                "manage-neutron-plugin-legacy-mode": false
+                "openstack-origin": "cloud:trusty-liberty"
+                "virt-type": qemu
+              "neutron-openvswitch":
+                "os-data-network": 192.168.133.0/24
+          - path: '/home/training/bootstrap-juju.sh'
+            permissions: '0755'
+            content: { get_file: files/bootstrap-juju-openstack.sh }
+          - path: '/home/training/deploy-juju.sh'
+            permissions: '0755'
+            content: { get_file: files/deploy-juju-openstack.sh }
+          - path: '/home/training/create-neutron-networks.sh'
+            permissions: '0755'
+            content: { get_file: files/create-neutron-networks.sh }
+          - path: '/home/training/get-cirros-image.sh'
+            permissions: '0755'
+            content: { get_file: files/get-cirros-image.sh }
+          - path: '/home/training/add-security-group-rules.sh'
+            permissions: '0755'
+            content: { get_file: files/add-security-group-rules.sh }
+          - path: '/home/training/openstackrc'
+            permissions: '0600'
+            content: { get_file: files/openstackrc }
+          - path: '/home/training/.profile'
+            permissions: '0644'
+            content: { get_file: files/profile }
+        apt_proxy: "http://localhost:3142"
+        apt_sources:
+          - source: ppa:juju/stable
+        packages:
+          - dnsmasq
+          - ntp
+          - screen
+          - juju-core
+          - python-cinderclient
+          - python-glanceclient
+          - python-openstackclient
+          - python-keystoneclient
+          - python-neutronclient
+          - python-novaclient
+          - python-heatclient
+        runcmd:
+          - chown -R training:training /home/training
+          - chsh -s /bin/bash training
+          - { get_attr: ['all_done_handle', 'curl_cli'] }
+
+  controller_config:
+    type: "OS::Heat::CloudConfig"
+    properties:
+      cloud_config:
+        package_update: true
+        package_upgrade: true
+        users:
+          - default
+          - name: training
+            groups: users,adm
+            lock-passwd: false
+            passwd: { get_param: user_password }
+            shell: /usr/sbin/nologin
+            sudo: "ALL=(ALL) NOPASSWD:ALL"
+            ssh_authorized_keys:
+              - { get_attr: [ user_keypair, public_key ] }
+        ssh_pwauth: true
+        write_files:
+          - path: /etc/cron.d/hwclock
+            permissions: '0644'
+            content: { get_file: files/hwclock.cron }
+          - path: /etc/hosts
+            permissions: '0644'
+            content: { get_file: files/hosts }
+          - path: /etc/dhcp/dhclient.conf
+            permissions: '0644'
+            content: { get_file: files/dhclient.conf }
+        apt_proxy: "http://deploy:3142"
+        packages:
+          - ntpdate
+        runcmd:
+          - ip route del 10.0.3.0/24 via 192.168.122.111
+          - ip route flush cache
+          - chsh -s /bin/bash training
+          - { get_attr: ['all_done_handle', 'curl_cli'] }
+
+  compute_config:
+    type: "OS::Heat::CloudConfig"
+    properties:
+      cloud_config:
+        ### bootcmd: runs arbitrary commands early in the boot sequence
+        bootcmd:
+          - mkfs -t ext4 /dev/vdb
+        package_update: true
+        package_upgrade: true
+        users:
+          - default
+          - name: training
+            groups: users,adm
+            lock-passwd: false
+            passwd: { get_param: user_password }
+            shell: /usr/sbin/nologin
+            sudo: "ALL=(ALL) NOPASSWD:ALL"
+            ssh_authorized_keys:
+              - { get_attr: [ user_keypair, public_key ] }
+        ssh_pwauth: true
+        write_files:
+          - path: /etc/cron.d/hwclock
+            permissions: '0644'
+            content: { get_file: files/hwclock.cron }
+          - path: /etc/hosts
+            permissions: '0644'
+            content: { get_file: files/hosts }
+          - path: /etc/network/interfaces.d/eth1.cfg
+            permissions: '0644'
+            content: |
+              auto eth1
+              iface eth1 inet dhcp
+          - path: /etc/network/interfaces.d/eth2.cfg
+            permissions: '0644'
+            content: |
+              auto eth2
+              iface eth2 inet dhcp
+        mounts:
+          - [ 'vdb', '/var/lib/nova/instances' ]
+        apt_proxy: "http://deploy:3142"
+        packages:
+          - ntpdate
+        runcmd:
+          - chsh -s /bin/bash training
+          - { get_attr: ['all_done_handle', 'curl_cli'] }
+
+  gateway_config:
+    type: "OS::Heat::CloudConfig"
+    properties:
+      cloud_config:
+        package_update: true
+        package_upgrade: true
+        users:
+          - default
+          - name: training
+            groups: users,adm
+            lock-passwd: false
+            passwd: { get_param: user_password }
+            shell: /usr/sbin/nologin
+            sudo: "ALL=(ALL) NOPASSWD:ALL"
+            ssh_authorized_keys:
+              - { get_attr: [ user_keypair, public_key ] }
+        ssh_pwauth: true
+        write_files:
+          - path: /etc/cron.d/hwclock
+            permissions: '0644'
+            content: { get_file: files/hwclock.cron }
+          - path: /etc/hosts
+            permissions: '0644'
+            content: { get_file: files/hosts }
+          - path: /etc/network/interfaces.d/eth1.cfg
+            permissions: '0644'
+            content: |
+              auto eth1
+              iface eth1 inet dhcp
+          - path: /etc/network/interfaces.d/eth2.cfg
+            permissions: '0644'
+            content: |
+              auto eth2
+              iface eth2 inet dhcp
+        apt_proxy: "http://deploy:3142"
+        packages:
+          - ntpdate
+        runcmd:
+          - chsh -s /bin/bash training
+          - { get_attr: ['all_done_handle', 'curl_cli'] }
+
+  volume_config:
+    type: "OS::Heat::CloudConfig"
+    properties:
+      cloud_config:
+        package_update: true
+        package_upgrade: true
+        users:
+          - default
+          - name: training
+            groups: users,adm
+            lock-passwd: false
+            passwd: { get_param: user_password }
+            shell: /usr/sbin/nologin
+            sudo: "ALL=(ALL) NOPASSWD:ALL"
+            ssh_authorized_keys:
+              - { get_attr: [ user_keypair, public_key ] }
+        ssh_pwauth: true
+        write_files:
+          - path: /etc/cron.d/hwclock
+            permissions: '0644'
+            content: { get_file: files/hwclock.cron }
+          - path: /etc/hosts
+            permissions: '0644'
+            content: { get_file: files/hosts }
+        mounts:
+          - [ 'vdb', null ]
+        apt_proxy: "http://deploy:3142"
+        packages:
+          - ntpdate
+        runcmd:
+          - chsh -s /bin/bash training
+          - { get_attr: ['all_done_handle', 'curl_cli'] }
+
+  management_net:
+    type: OS::Neutron::Net
+    properties:
+      name: management-net
+
+  management_sub_net:
+    type: OS::Neutron::Subnet
+    properties:
+      name: management-sub-net
+      network_id: { get_resource: management_net }
+      cidr: 192.168.122.0/24
+      gateway_ip: 192.168.122.1
+      enable_dhcp: true
+      allocation_pools: [{"start": "192.168.122.200", "end": "192.168.122.250"}]
+      host_routes:
+        - destination: 10.0.3.0/24
+          nexthop: 192.168.122.111
+      dns_nameservers:
+        - 192.168.122.100
+        - 8.8.8.8
+        - 8.8.4.4
+
+  router:
+    type: OS::Neutron::Router
+
+  router_gateway:
+    type: OS::Neutron::RouterGateway
+    properties:
+      router_id: { get_resource: router }
+      network_id: { get_param: public_net_id }
+
+  router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: router }
+      subnet_id: { get_resource: management_sub_net }
+
+  data_net:
+    type: OS::Neutron::Net
+    properties:
+      name: data-net
+
+  data_sub_net:
+    type: OS::Neutron::Subnet
+    properties:
+      name: data-sub-net
+      network_id: { get_resource: data_net }
+      cidr: 192.168.133.0/24
+      gateway_ip: ""
+      enable_dhcp: true
+      allocation_pools: [{"start": "192.168.133.2", "end": "192.168.133.50"}]
+      dns_nameservers:
+        - 8.8.8.8
+        - 8.8.4.4
+
+  external_net:
+    type: OS::Neutron::Net
+    properties:
+      name: external-net
+
+  external_sub_net:
+    type: OS::Neutron::Subnet
+    properties:
+      name: external-sub-net
+      network_id: { get_resource: external_net }
+      cidr: 192.168.144.0/24
+      gateway_ip: ""
+      enable_dhcp: true
+      allocation_pools: [{"start": "192.168.144.2", "end": "192.168.144.50"}]
+      dns_nameservers:
+        - 8.8.8.8
+        - 8.8.4.4
+
+  deploy:
+    type: OS::Nova::Server
+    properties:
+      name: deploy
+      image: { get_param: image }
+      flavor: { get_param: deploy_flavor }
+      key_name: { get_param: key_name }
+      user_data: { get_resource: juju_config }
+      user_data_format: RAW
+      networks:
+        - port: { get_resource: deploy_management_port }
+        - port: { get_resource: deploy_external_port }
+
+  deploy_management_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: management_net }
+      security_groups:
+        - { get_resource: server_security_group }
+      fixed_ips:
+        - ip_address: 192.168.122.100
+
+  deploy_external_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: external_net }
+      fixed_ips:
+        - ip_address: 192.168.144.100
+
+  deploy_floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network_id: { get_param: public_net_id }
+      port_id: { get_resource: deploy_management_port }
+
+  alice:
+    type: OS::Nova::Server
+    properties:
+      name: alice
+      image: { get_param: image }
+      flavor: { get_param: controller_flavor }
+      key_name: { get_param: key_name }
+      user_data: { get_resource: controller_config }
+      user_data_format: RAW
+      metadata:
+        wait_condition_data: { get_attr: [ proxy_ready, data ] }
+      networks:
+        - port: { get_resource: alice_management_port }
+
+  alice_management_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: management_net }
+      security_groups:
+        - { get_resource: server_security_group }
+      fixed_ips:
+        - ip_address: 192.168.122.111
+      allowed_address_pairs:
+        - ip_address: 10.0.3.0/24
+
+  alice_floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network_id: { get_param: public_net_id }
+      port_id: { get_resource: alice_management_port }
+
+  bob:
+    type: OS::Nova::Server
+    properties:
+      name: bob
+      image: { get_param: image }
+      flavor: { get_param: compute_flavor }
+      key_name: { get_param: key_name }
+      user_data: { get_resource: compute_config }
+      user_data_format: RAW
+      metadata:
+        wait_condition_data: { get_attr: [ proxy_ready, data ] }
+      networks:
+        - port: { get_resource: bob_management_port }
+        - port: { get_resource: bob_data_port }
+        - port: { get_resource: bob_external_port }
+
+  bob_management_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: management_net }
+      security_groups:
+        - { get_resource: server_security_group }
+      fixed_ips:
+        - ip_address: 192.168.122.112
+
+  bob_data_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: data_net }
+      fixed_ips:
+        - ip_address: 192.168.133.112
+
+  bob_external_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: external_net }
+      fixed_ips:
+        - ip_address: 192.168.144.112
+
+  charlie:
+    type: OS::Nova::Server
+    properties:
+      name: charlie
+      image: { get_param: image }
+      flavor: { get_param: gateway_flavor }
+      key_name: { get_param: key_name }
+      user_data: { get_resource: gateway_config }
+      user_data_format: RAW
+      metadata:
+        wait_condition_data: { get_attr: [ proxy_ready, data ] }
+      networks:
+        - port: { get_resource: charlie_management_port }
+        - port: { get_resource: charlie_data_port }
+        - port: { get_resource: charlie_external_port }
+
+  charlie_management_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: management_net }
+      security_groups:
+        - { get_resource: server_security_group }
+      fixed_ips:
+        - ip_address: 192.168.122.113
+
+  charlie_data_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: data_net }
+      fixed_ips:
+        - ip_address: 192.168.133.113
+
+  charlie_external_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: external_net }
+      fixed_ips:
+        - ip_address: 192.168.144.113
+      allowed_address_pairs:
+        - ip_address: 0.0.0.0/0
+
+  daisy:
+    type: OS::Nova::Server
+    properties:
+      name: daisy
+      image: { get_param: image }
+      flavor: { get_param: volume_flavor }
+      key_name: { get_param: key_name }
+      user_data: { get_resource: volume_config }
+      user_data_format: RAW
+      metadata:
+        wait_condition_data: { get_attr: [ proxy_ready, data ] }
+      networks:
+        - port: { get_resource: daisy_management_port }
+
+  daisy_management_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: management_net }
+      security_groups:
+        - { get_resource: server_security_group }
+      fixed_ips:
+        - ip_address: 192.168.122.114
+
+outputs:
+  deploy_ip:
+    description: Floating IP address of deploy host in public network
+    value: { get_attr: [ deploy_floating_ip, floating_ip_address ] }
+  dashboard_ip:
+    description: Floating IP address of Horizon host in public network
+    value: { get_attr: [ alice_floating_ip, floating_ip_address ] }

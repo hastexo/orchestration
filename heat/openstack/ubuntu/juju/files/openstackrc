@@ -1,0 +1,8 @@
+#!/bin/bash
+OS_TENANT_NAME=admin
+OS_USERNAME=admin
+OS_PASSWORD=openstack
+echo "Please enter your Keystone service IP: "
+read -r KEYSTONE_IP
+OS_AUTH_URL="http://${KEYSTONE_IP}:5000/v2.0"
+export OS_TENANT_NAME OS_USERNAME OS_PASSWORD OS_AUTH_URL
