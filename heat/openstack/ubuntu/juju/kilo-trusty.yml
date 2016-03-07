@@ -115,6 +115,11 @@ resources:
         direction: ingress
         port_range_min: 443
         port_range_max: 443
+      - remote_ip_prefix: 0.0.0.0/0
+        protocol: tcp
+        direction: ingress
+        port_range_min: 8080
+        port_range_max: 8080
 
   user_keypair:
     type: OS::Nova::KeyPair
@@ -238,6 +243,8 @@ resources:
                 "virt-type": qemu
               "neutron-openvswitch":
                 "os-data-network": 192.168.133.0/24
+              "juju-gui":
+                port: 8080
           - path: '/home/training/bootstrap-juju.sh'
             permissions: '0755'
             content: { get_file: files/bootstrap-juju-openstack.sh }
