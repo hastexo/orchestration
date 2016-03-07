@@ -290,6 +290,9 @@ resources:
     type: "OS::Heat::CloudConfig"
     properties:
       cloud_config:
+        ### bootcmd: runs arbitrary commands early in the boot sequence
+        bootcmd:
+          - mkfs -t ext4 /dev/vdb
         package_update: true
         package_upgrade: true
         users:
@@ -313,6 +316,8 @@ resources:
           - path: /etc/dhcp/dhclient.conf
             permissions: '0644'
             content: { get_file: files/dhclient.conf }
+        mounts:
+          - [ 'vdb', '/var/lib/lxc' ]
         apt_proxy: "http://deploy:3142"
         packages:
           - ntpdate
