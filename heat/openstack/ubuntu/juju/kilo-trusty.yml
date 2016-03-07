@@ -202,8 +202,6 @@ resources:
           - path: '/home/training/juju-config.yaml'
             permissions: '0644'
             content: |
-              mysql:
-                "dataset-size": 256M
               keystone:
                 "admin-password": openstack
                 "openstack-origin": "cloud:trusty-liberty"
@@ -234,6 +232,7 @@ resources:
               heat:
                 "openstack-origin": "cloud:trusty-liberty"
               mysql:
+                "dataset-size": 256M
               "openstack-dashboard":
                 "openstack-origin": "cloud:trusty-liberty"
                 "webroot": "/"
