@@ -52,7 +52,7 @@ juju add-relation cinder-volume:amqp rabbitmq-server:amqp
 juju add-relation cinder-volume:shared-db mysql:shared-db
 juju add-relation cinder-volume:image-service glance:image-service
 
-juju deploy --config=/home/training/juju-config.yaml openstack-dashboard --to 1
+juju deploy --config=/home/training/juju-config.yaml openstack-dashboard --to 0
 juju add-relation openstack-dashboard:identity-service keystone:identity-service
 
 juju deploy --config=/home/training/juju-config.yaml heat --to lxc:1
