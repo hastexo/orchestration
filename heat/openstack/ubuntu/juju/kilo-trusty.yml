@@ -575,12 +575,6 @@ resources:
       allowed_address_pairs:
         - ip_address: 10.0.3.0/24
 
-  alice_floating_ip:
-    type: OS::Neutron::FloatingIP
-    properties:
-      floating_network_id: { get_param: public_net_id }
-      port_id: { get_resource: alice_management_port }
-
   bob:
     type: OS::Nova::Server
     properties:
@@ -685,9 +679,6 @@ resources:
         - ip_address: 192.168.122.114
 
 outputs:
-  deploy_ip:
+  public_ip:
     description: Floating IP address of deploy host in public network
     value: { get_attr: [ deploy_floating_ip, floating_ip_address ] }
-  dashboard_ip:
-    description: Floating IP address of Horizon host in public network
-    value: { get_attr: [ alice_floating_ip, floating_ip_address ] }
