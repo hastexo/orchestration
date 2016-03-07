@@ -244,6 +244,9 @@ resources:
                 "os-data-network": 192.168.133.0/24
               "juju-gui":
                 port: 8080
+          - path: '/home/training/bootstrap-ssh.sh'
+            permissions: '0755'
+            content: { get_file: files/bootstrap-ssh.sh }
           - path: '/home/training/bootstrap-juju.sh'
             permissions: '0755'
             content: { get_file: files/bootstrap-juju-openstack.sh }
