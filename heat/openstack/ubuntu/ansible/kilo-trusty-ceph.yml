@@ -54,6 +54,10 @@ parameters:
     type: number
     description: Timeout for stack creation to finish
     default: 900
+  openstack_release:
+    type: string
+    description: OpenStack release name
+    default: kilo
 
 resources:
   all_done:
@@ -222,7 +226,10 @@ resources:
           - git
           - python-dev
         runcmd:
-          - git clone -b kilo https://github.com/openstack/openstack-ansible.git /home/training/openstack-ansible
+          - str_replace:
+              template: git clone -b RELEASE https://github.com/openstack/openstack-ansible.git /home/training/openstack-ansible
+              params:
+                RELEASE: { get_param: openstack_release }
           - cp -n -R /home/training/openstack-ansible/etc/openstack_deploy /etc
           - /home/training/openstack-ansible/scripts/pw-token-gen.py --file /etc/openstack_deploy/user_secrets.yml
           - git clone https://github.com/ceph/ceph-ansible.git /home/training/ceph-ansible
