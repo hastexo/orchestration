@@ -441,6 +441,7 @@ resources:
         packages:
           - ntpdate
         runcmd:
+          - pvcreate /dev/vdb
           - chsh -s /bin/bash training
           - { get_attr: ['all_done_handle', 'curl_cli'] }
 
