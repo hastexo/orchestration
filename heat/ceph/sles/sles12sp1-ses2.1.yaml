@@ -1,0 +1,315 @@
+heat_template_version: 2014-10-16
+
+parameters:
+  flavor:
+    type: string
+    description: Flavor to use for servers
+    default: m1.medium
+  external_network:
+    type: string
+    description: Public (external) network name or ID
+  image:
+    type: string
+    description: Image name or ID
+  key_name:
+    type: string
+    description: SSH keypair name
+  sles12_key:
+    type: string
+    description: SLES 12 product registration key
+  ses_key:
+    type: string
+    description: SUSE Enterprise Storage product registration key
+
+resources:
+  all_done:
+    type: OS::Heat::WaitCondition
+    properties:
+      handle: { get_resource: all_done_handle }
+      count: 4
+      timeout: 900
+
+  all_done_handle:
+    type: OS::Heat::WaitConditionHandle
+
+  server_security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      description: Neutron security group rules
+      name: server_security_group
+      rules:
+      - remote_mode: 'remote_group_id'
+        remote_group_id:
+        direction: ingress
+      - remote_ip_prefix: 0.0.0.0/0
+        protocol: tcp
+        direction: ingress
+        port_range_min: 22
+        port_range_max: 22
+      - remote_ip_prefix: 0.0.0.0/0
+        protocol: icmp
+
+  public_net:
+    type: OS::Neutron::Net
+    properties:
+      name: public-net
+
+  public_sub_net:
+    type: OS::Neutron::Subnet
+    properties:
+      name: public-sub-net
+      network_id: { get_resource: public_net }
+      cidr: 192.168.122.0/24
+      gateway_ip: 192.168.122.1
+      dns_nameservers:
+        - 192.168.122.100
+        - 8.8.8.8
+        - 8.8.4.4
+      enable_dhcp: true
+      allocation_pools:
+        - start: "192.168.122.2"
+          end: "192.168.122.50"
+
+  cluster_net:
+    type: OS::Neutron::Net
+    properties:
+      name: cluster-net
+
+  cluster_sub_net:
+    type: OS::Neutron::Subnet
+    properties:
+      name: cluster-sub-net
+      network_id: { get_resource: cluster_net }
+      cidr: 192.168.133.0/24
+      gateway_ip: ""
+      dns_nameservers:
+        - 8.8.8.8
+        - 8.8.4.4
+      enable_dhcp: true
+      allocation_pools:
+        - start: "192.168.133.2"
+          end: "192.168.133.50"
+
+  router:
+    type: OS::Neutron::Router
+
+  router_gateway:
+    type: OS::Neutron::RouterGateway
+    properties:
+      router_id: { get_resource: router }
+      network: { get_param: external_network }
+
+  router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router: { get_resource: router }
+      subnet: { get_resource: public_sub_net }
+
+  deploy_config:
+    type: OS::Heat::CloudConfig
+    properties:
+      cloud_config:
+        ### bootcmd: runs arbitrary commands early in the boot sequence
+        bootcmd:
+          - str_replace:
+              template: SUSEConnect -r KEY
+              params:
+                KEY: { get_param: sles12_key }
+          - str_replace:
+              template: "SUSEConnect -r KEY -p 'ses/2.1/x86_64'"
+              params:
+                KEY: { get_param: ses_key }
+          - zypper --gpg-auto-import-keys refresh
+        ### write_files: creates files
+        write_files:
+          - path: /etc/hosts
+            permissions: '0644'
+            content: |
+              #
+              # hosts         This file describes a number of hostname-to-address
+              #               mappings for the TCP/IP subsystem.  It is mostly
+              #               used at boot time, when no name servers are running.
+              #               On small systems, this file can be used instead of a
+              #               "named" name server.
+              # Syntax:
+              #    
+              # IP-Address  Full-Qualified-Hostname  Short-Hostname
+              #
+              
+              127.0.0.1	localhost
+              
+              # special IPv6 addresses
+              ::1             localhost ipv6-localhost ipv6-loopback
+              
+              fe00::0         ipv6-localnet
+              
+              ff00::0         ipv6-mcastprefix
+              ff02::1         ipv6-allnodes
+              ff02::2         ipv6-allrouters
+              ff02::3         ipv6-allhosts
+              
+              192.168.122.100 deploy.example.com deploy
+              192.168.122.114 daisy.example.com daisy
+              192.168.122.115 eric.example.com eric
+              192.168.122.116 frank.example.com frank
+        ### packages: installs packages
+        package_update: true
+        package_upgrade: true
+        packages:
+          - ceph-deploy
+          - ceph-common
+          - dnsmasq
+          - bind-utils
+        ### runcmd: runs arbitrary commands late in the boot sequence
+        runcmd:
+          - systemctl enable dnsmasq
+          - systemctl start dnsmasq
+          - { get_attr: ['all_done_handle', 'curl_cli'] }
+
+  host_config:
+    type: OS::Heat::CloudConfig
+    properties:
+      cloud_config:
+        ### bootcmd: runs arbitrary commands early in the boot sequence
+        bootcmd:
+          - str_replace:
+              template: SUSEConnect -r KEY
+              params:
+                KEY: { get_param: sles12_key }
+          - str_replace:
+              template: "SUSEConnect -r KEY -p 'ses/2.1/x86_64'"
+              params:
+                KEY: { get_param: ses_key }
+          - zypper --gpg-auto-import-keys refresh
+        ### packages: installs packages
+        package_update: true
+        package_upgrade: true
+        packages:
+          - ceph
+        ### runcmd: runs arbitrary commands late in the boot sequence
+        mounts:
+          - [ 'vdb', null ]
+        runcmd:
+          - cp /etc/sysconfig/network/ifcfg-eth0 /etc/sysconfig/network/ifcfg-eth1
+          - ifup eth1
+          - { get_attr: ['all_done_handle', 'curl_cli'] }
+
+
+  deploy:
+    type: OS::Nova::Server
+    properties:
+      name: deploy
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      user_data: { get_resource: deploy_config }
+      user_data_format: RAW
+      networks:
+        - port: { get_resource: deploy_public_port }
+
+  deploy_public_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: public_net }
+      fixed_ips:
+        - ip_address: 192.168.122.100
+      security_groups:
+        - { get_resource: server_security_group }
+
+  deploy_floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: { get_param: external_network }
+      port_id: { get_resource: deploy_public_port }
+
+  daisy:
+    type: OS::Nova::Server
+    properties:
+      name: daisy
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      user_data:  { get_resource: host_config }
+      user_data_format: RAW
+      networks:
+        - port: { get_resource: daisy_public_port }
+        - port: { get_resource: daisy_cluster_port }
+
+  daisy_public_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: public_net }
+      fixed_ips:
+        - ip_address: 192.168.122.114
+      security_groups:
+        - { get_resource: server_security_group }
+
+  daisy_cluster_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: cluster_net }
+      fixed_ips:
+        - ip_address: 192.168.133.114
+
+  eric:
+    type: OS::Nova::Server
+    properties:
+      name: eric
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      user_data:  { get_resource: host_config }
+      user_data_format: RAW
+      networks:
+        - port: { get_resource: eric_public_port }
+        - port: { get_resource: eric_cluster_port }
+
+  eric_public_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: public_net }
+      fixed_ips:
+        - ip_address: 192.168.122.115
+      security_groups:
+        - { get_resource: server_security_group }
+
+  eric_cluster_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: cluster_net }
+      fixed_ips:
+        - ip_address: 192.168.133.115
+
+  frank:
+    type: OS::Nova::Server
+    properties:
+      name: frank
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      user_data:  { get_resource: host_config }
+      user_data_format: RAW
+      networks:
+        - port: { get_resource: frank_public_port }
+        - port: { get_resource: frank_cluster_port }
+
+  frank_public_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: public_net }
+      fixed_ips:
+        - ip_address: 192.168.122.116
+      security_groups:
+        - { get_resource: server_security_group }
+
+  frank_cluster_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: cluster_net }
+      fixed_ips:
+        - ip_address: 192.168.133.116
+
+outputs:
+  floating_ip:
+    description: Floating IP address of deploy in external network
+    value: { get_attr: [ deploy_floating_ip, floating_ip_address ] }
